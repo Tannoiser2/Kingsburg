@@ -141,18 +141,20 @@ func _build_board() -> void:
 		board_layer.add_child(p)
 		adv_panels[a] = p
 	var cr := PanelContainer.new()
-	cr.position = Vector2(522, 150)
-	cr.size = Vector2(446, 330)
+	cr.position = Vector2(662, 146)
+	cr.size = Vector2(312, 196)
 	cr.custom_minimum_size = cr.size
-	cr.add_theme_stylebox_override("panel", UI.panel_style(Color("#0e0b07c8"), Color("#6a5a3a"), 1, 8))
+	var crs := UI.panel_style(Color("#0e0b07d0"), Color("#6a5a3a"), 1, 8)
+	crs.set_content_margin_all(6)
+	cr.add_theme_stylebox_override("panel", crs)
 	cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	board_layer.add_child(cr)
 	chron = RichTextLabel.new()
 	chron.bbcode_enabled = true
 	chron.scroll_following = true
 	chron.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	chron.add_theme_font_size_override("normal_font_size", 17)
-	chron.add_theme_font_size_override("bold_font_size", 18)
+	chron.add_theme_font_size_override("normal_font_size", 15)
+	chron.add_theme_font_size_override("bold_font_size", 16)
 	chron.add_theme_constant_override("line_separation", -2)
 	cr.add_child(chron)
 	markers = Control.new()
