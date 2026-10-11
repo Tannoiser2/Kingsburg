@@ -55,7 +55,7 @@ func _run() -> void:
 		await shot("rules")
 		quit()
 		return
-	var np := 4
+	var np := int(OS.get_cmdline_user_args()[1]) if OS.get_cmdline_user_args().size() > 1 else 4
 	var seats := []
 	for i in range(np):
 		seats.append({"color": i, "ai": i != 0, "name": ["Stefano", "Giallo", "Blu", "Nero", "Verde"][i], "level": 1})

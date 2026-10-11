@@ -477,7 +477,7 @@ func legal_moves(seat: int) -> Array:
 	var out := []
 	if free.is_empty():
 		return out
-	var can_p2: bool = p["p2"] > 0
+	var can_p2: bool = p["p2"] > 0 and not p["used"].get("p2", false)   # un solo gettone +2 per stagione
 	var can_mk: bool = has_b(seat, D.B_MERCATO) and not p["used"].get("market", false)
 	var can_env: bool = envoy == seat
 	var seen := {}
@@ -540,6 +540,7 @@ func _apply_move(seat: int, mv: Dictionary) -> void:
 		whites.append(p["dice"][di]["white"])
 	if mv["p2"] > 0:
 		p["p2"] -= 1
+		p["used"]["p2"] = true
 	if mv["mk"] != 0:
 		p["used"]["market"] = true
 	var a: int = mv["adv"]

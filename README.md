@@ -20,7 +20,7 @@ le immagini vengono dal modulo Tabletop Simulator e non vanno distribuite pubbli
   Locanda, Caserma, Scuderia, Mura, Fortezza, Argano, Municipio, Ambasciata, Cattedrale, bonus contro
   Goblin/Zombi/Demoni…), gettoni +2, Mercenari, battaglia d'inverno con le 25 carte Invasori,
   distruzione degli edifici, regola dei dadi neutrali per 2 giocatori, spareggi finali.
-- **IA** su tre livelli (Facile / Normale / Difficile). Valuta ogni cosa in punti vittoria attesi: le merci
+- **IA** su tre livelli (Facile / Normale / Difficile; i pesi del Difficile sono stati regolati con centinaia di partite IA contro IA). Valuta ogni cosa in punti vittoria attesi: le merci
   pesano di più se servono agli edifici che ha in programma, i soldati quanto migliorano la battaglia
   attesa (con le carte possibili dell'anno, o quella vista), e per i Consiglieri cerca la migliore
   ripartizione di tutti i suoi dadi, giocando prima quelli che gli avversari potrebbero rubargli.
@@ -72,10 +72,11 @@ assets/                      tabellone, edifici, carte, dadi, stemmi, icone (dal
 ```
 
 ## Scelte da verificare
-- Un solo gettone +2 per ogni influenza ("un singolo gettone +2 può essere aggiunto ad un gruppo").
+- Un solo gettone +2 per giocatore in ogni stagione (dai "Chiarimenti" del regolamento).
 - Statua e Cappella valgono anche per i dadi bianchi (come nell'esempio del regolamento) e si possono
   usare una volta ciascuna per stagione, in qualsiasi ordine.
-- Premio del Re: serve almeno un edificio.
+- Premio del Re: serve almeno un edificio (a inizio partita nessuno lo riceve).
+- Con 2 giocatori i dadi neutrali contano come Consiglieri già influenzati: l'Agente del Re può usarli.
 - L'Agente del Re per il secondo edificio si usa nel proprio turno di costruzione.
 - Espansioni (*To Forge a Realm*: linee di edifici alternative, carte Fato e Governatore, Capricci,
   Rinforzi determinabili) non ancora incluse.

@@ -10,6 +10,16 @@ extends RefCounted
 const D = preload("res://scripts/data/kb_data.gd")
 
 var level := 1                   # 0 facile, 1 normale, 2 difficile
+## Pesi della valutazione. "Normale" usa BASE; "Difficile" usa TUNED (trovati con partite IA contro IA).
+const BASE := {"miss": 0.55, "g_g": 1.05, "g_w": 0.9, "g_s": 0.95, "deficit": 0.75, "surplus": 0.25, "late": 0.75,
+	"p2": 0.65, "p2_th": 0.95, "unlock": 0.25, "winb": 0.35, "lostb": 1.2, "spy": 0.6, "envoy": 1.2,
+	"threat": 0.12, "deny": 0.0, "bcost": 0.55, "second": 0.8,
+	"batt": 0.75, "statua": 0.12, "cappella": 0.25, "locanda": 0.6, "mercato": 0.35, "fattorie": 0.9, "gmerc": 1.0,
+	"caserma": 0.7, "scuderia": 0.3, "argano": 0.25, "municipio": 0.6, "ambasciata": 1.0}
+const TUNED := {"g_s": 1.52, "late": 0.975, "p2": 0.488, "p2_th": 0.712, "unlock": 0.325, "envoy": 0.72,
+	"deny": 0.05, "bcost": 0.715, "caserma": 0.91}
+var W := {}
+var W2 := {}
 var rng := RandomNumberGenerator.new()
 
 var _eng: KBEngine
@@ -22,6 +32,8 @@ var _solv := []                  # valore del k-esimo soldato in più
 func decide(eng: KBEngine, seat: int, req: Dictionary):
 	_eng = eng
 	_seat = seat
+	if W.is_empty():
+		set_weights({})
 	_prepare()
 	match str(req.get("type", "")):
 		"goods":
@@ -43,6 +55,16 @@ func decide(eng: KBEngine, seat: int, req: Dictionary):
 		"ack":
 			return true
 	return null
+
+
+func set_weights(over: Dictionary) -> void:
+	W = BASE.duplicate()
+	if level >= 2:
+		for k in TUNED:
+			W[k] = TUNED[k]
+	for k in over:
+		W[k] = float(over[k])
+	W2 = W
 
 
 # ------------------------------------------------------------------ modello di valore
@@ -91,7 +113,7 @@ func _prepare() -> void:
 				ctot += cost.get(t, 0)
 			var val := _building_value(b)
 			if missing == 1:
-				val *= 0.55
+				val *= W["miss"]
 			cands.append({"b": b, "score": val / maxf(1.0, ctot + 0.5), "cost": cost})
 			if missing == 1:
 				break
@@ -115,17 +137,17 @@ func _good_value(t: String, extra := 0) -> float:
 	var late: int = _gv["late"]
 	if late <= 0:
 		return 0.55 if _gv["cath"] else 0.05
-	var base: float = {"g": 1.05, "w": 0.9, "s": 0.95}[t]
+	var base: float = W["g_" + t]
 	if level == 0:
 		return base
 	var deficit: int = _gv[t]["deficit"] - extra
 	var v: float = base
 	if deficit > 0:
-		v += 0.75
+		v += W["deficit"]
 	elif extra + _p()["goods"][t] > _need.get(t, 0) + 2:
-		v -= 0.25
+		v -= W["surplus"]
 	if late <= 2:
-		v *= 0.75
+		v *= W["late"]
 	return v
 
 
@@ -146,7 +168,7 @@ func _bundle_value(b: Dictionary) -> float:
 		for k in range(b["sol"]):
 			v += _solv[mini(k, _solv.size() - 1)]
 	if b.get("p2", 0) > 0:
-		v += b["p2"] * (0.95 if _p()["bld"][D.B_MUNICIPIO] else 0.65) * (1.0 if _seasons_left() > 1 else 0.3)
+		v += b["p2"] * (W["p2_th"] if _p()["bld"][D.B_MUNICIPIO] else W["p2"]) * (1.0 if _seasons_left() > 1 else 0.3)
 	return v
 
 
@@ -168,32 +190,32 @@ func _best_good(acc: Dictionary) -> String:
 ## Valore di un edificio: PV + effetto per il resto della partita.
 func _building_value(b: int) -> float:
 	var R := float(_seasons_left())
-	var W := float(_winters_left())
+	var WN := float(_winters_left())
 	var v := float(D.BUILDINGS[b]["vp"])
-	var batt := 0.75 * W
+	var batt: float = W2["batt"] * WN
 	match b:
-		D.B_STATUA: v += 0.12 * R
-		D.B_CAPPELLA: v += 0.25 * R
-		D.B_CHIESA: v += 0.15 * W
+		D.B_STATUA: v += W2["statua"] * R
+		D.B_CAPPELLA: v += W2["cappella"] * R
+		D.B_CHIESA: v += 0.15 * WN
 		D.B_CATTEDRALE: v += 1.5
-		D.B_LOCANDA: v += 0.6 * ceilf(R / 3.0)
-		D.B_MERCATO: v += 0.35 * R
-		D.B_FATTORIE: v += 0.9 * R - 0.6 * W
-		D.B_GILDA_MERC: v += 1.0 * R
+		D.B_LOCANDA: v += W2["locanda"] * ceilf(R / 3.0)
+		D.B_MERCATO: v += W2["mercato"] * R
+		D.B_FATTORIE: v += W2["fattorie"] * R - 0.6 * WN
+		D.B_GILDA_MERC: v += W2["gmerc"] * R
 		D.B_TORRE, D.B_FUCINA: v += batt
-		D.B_CASERMA: v += 0.7 * W
+		D.B_CASERMA: v += W2["caserma"] * WN
 		D.B_GILDA_MAGHI: v += 2.0 * batt
 		D.B_PALIZZATA: v += batt * 1.1
-		D.B_SCUDERIA: v += 0.3 * R
+		D.B_SCUDERIA: v += W2["scuderia"] * R
 		D.B_MURA: v += batt * 1.3
-		D.B_FORTEZZA: v += batt + 0.5 * W
-		D.B_BARRICATA: v += 0.25 * W
-		D.B_ARGANO: v += 0.25 * R
-		D.B_MUNICIPIO: v += 0.6 * R
-		D.B_AMBASCIATA: v += 1.0 * R
+		D.B_FORTEZZA: v += batt + 0.5 * WN
+		D.B_BARRICATA: v += 0.25 * WN
+		D.B_ARGANO: v += W2["argano"] * R
+		D.B_MUNICIPIO: v += W2["municipio"] * R
+		D.B_AMBASCIATA: v += W2["ambasciata"] * R
 	# sblocca l'edificio successivo della riga
 	if D.building_col(b) < 3 and R > 1:
-		v += 0.25 * D.BUILDINGS[b + 1]["vp"] * minf(1.0, R / 6.0)
+		v += W["unlock"] * D.BUILDINGS[b + 1]["vp"] * minf(1.0, R / 6.0)
 	return v
 
 
@@ -223,7 +245,7 @@ func _battle_ev(sol: int) -> float:
 		for die in range(1, 7):
 			var t: int = sol + die + bonus
 			if t > card["str"] or (t == card["str"] and _p()["bld"][D.B_MURA]):
-				tot += rew_v + (1.0 if _p()["bld"][D.B_FORTEZZA] else 0.0) + 0.35
+				tot += rew_v + (1.0 if _p()["bld"][D.B_FORTEZZA] else 0.0) + W["winb"]
 			elif t < card["str"]:
 				tot -= pen_v
 			cnt += 1
@@ -239,7 +261,7 @@ func _penalty_value(pen: Dictionary) -> float:
 	if pen.get("bld", 0) > 0:
 		var b := _eng._building_to_destroy(_seat)
 		if b >= 0:
-			v += D.BUILDINGS[b]["vp"] + 1.2
+			v += D.BUILDINGS[b]["vp"] + W["lostb"]
 	v += pen.get("vp", 0)
 	return v
 
@@ -306,7 +328,7 @@ func _pick(req: Dictionary):
 			var t := _best_good(acc)
 			gain += _good_value(t, acc[t])
 			acc[t] += 1
-		return 1 if gain > _vp_value() + 0.6 else 0
+		return 1 if gain > _vp_value() + W["spy"] else 0
 	if ctx == "alch":
 		var best := 0
 		var bv := 0.15
@@ -441,7 +463,7 @@ func _best_partition_value(vals: Array, whites: Array) -> float:
 	var av := _adv_values()
 	var p := _p()
 	var can_mk: bool = p["bld"][D.B_MERCATO] and not p["used"].get("market", false)
-	var r := _search(vals, whites, (1 << vals.size()) - 1, {}, mini(p["p2"], 2), can_mk, av, {})
+	var r := _search(vals, whites, (1 << vals.size()) - 1, {}, (0 if p["used"].get("p2", false) else mini(p["p2"], 1)), can_mk, av, {})
 	return r["v"]
 
 
@@ -537,16 +559,16 @@ func _influence(moves: Array):
 		if mv["env"]:
 			gain *= 1.0
 		var used := {a: true}
-		var rest := _search(vals, whites, ((1 << vals.size()) - 1) & ~g, used, mini(p["p2"] - mv["p2"], 2), can_mk and mv["mk"] == 0, av, memo)
+		var rest := _search(vals, whites, ((1 << vals.size()) - 1) & ~g, used, (0 if (p["used"].get("p2", false) or mv["p2"] > 0) else mini(p["p2"], 1)), can_mk and mv["mk"] == 0, av, memo)
 		var v: float = gain + rest["v"] - 0.05 * mv["p2"] - (0.1 if mv["mk"] != 0 else 0.0)
 		if mv["env"]:
 			# l'Agente del Re si usa solo se ne vale davvero la pena
-			v -= 1.2
+			v -= W["envoy"]
 		if level >= 1:
 			# prima i consiglieri che gli avversari possono rubare
-			v += 0.12 * av[a] * minf(2.0, _threat(a))
-		if level >= 2:
-			v += 0.08 * _deny_value(a)
+			v += W["threat"] * av[a] * minf(2.0, _threat(a))
+		if true:
+			v += W["deny"] * _deny_value(a)
 		if level == 0:
 			v *= rng.randf_range(0.7, 1.3)
 		if v > best_v:
@@ -578,10 +600,10 @@ func _build(options: Array, second: bool):
 		for t in D.GOODS:
 			for k in range(cost.get(t, 0)):
 				acc[t] -= 1
-				c += _good_value(t, acc[t]) * 0.55
+				c += _good_value(t, acc[t]) * W["bcost"]
 		var v := _building_value(b) - c
 		if second:
-			v -= 0.8
+			v -= W["second"]
 		if level == 0:
 			v *= rng.randf_range(0.6, 1.4)
 		if v > bv:

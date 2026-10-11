@@ -765,7 +765,7 @@ func _influence_ui() -> void:
 	var tot := _sel_sum() + (2 if use_p2 else 0) + mk
 	sl.text = "= %d" % tot if not sel_dice.is_empty() else ""
 	action_row.add_child(sl)
-	if p["p2"] > 0:
+	if p["p2"] > 0 and not p["used"].get("p2", false):
 		var b2 := UI.button("+2 (%d)" % p["p2"], 96, 52, 22)
 		if use_p2:
 			UI.primary(b2)
