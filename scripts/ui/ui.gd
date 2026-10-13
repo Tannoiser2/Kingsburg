@@ -48,7 +48,21 @@ static func die_tex(color_key: String, v: int) -> Texture2D:
 
 
 static func building_tex(b: int) -> Texture2D:
+	if b >= 20:
+		return tex("res://assets/buildings/x%d.jpg" % b)
 	return tex("res://assets/buildings/b%d%d.jpg" % [b / 4, b % 4])
+
+
+static func gov_tex(g: int) -> Texture2D:
+	return tex("res://assets/governors/g%d.jpg" % g)
+
+
+static func fate_tex(f: int) -> Texture2D:
+	return tex("res://assets/fate/f%d.jpg" % f)
+
+
+static func cap_tex(k: int) -> Texture2D:
+	return tex("res://assets/capricci/c%d.png" % k)
 
 
 static func invader_tex(ci: int) -> Texture2D:

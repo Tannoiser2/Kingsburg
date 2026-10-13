@@ -59,7 +59,11 @@ func _run() -> void:
 	var seats := []
 	for i in range(np):
 		seats.append({"color": i, "ai": i != 0, "name": ["Stefano", "Giallo", "Blu", "Nero", "Verde"][i], "level": 1})
-	main.start_game({"seats": seats, "seed": 42, "ai_delay": 0.0})
+	var mods := {}
+	if OS.get_cmdline_user_args().size() > 2:
+		for k in OS.get_cmdline_user_args()[2].split(","):
+			mods[k] = true
+	main.start_game({"seats": seats, "seed": 42, "ai_delay": 0.0, "mods": mods})
 	await wait(10)
 	var shots_taken := {}
 	var guard := 0
@@ -83,7 +87,7 @@ func _run() -> void:
 				g._clear_modal()
 				g.engine.provide_decision(true)
 			continue
-		var key := "%s_%d_%d" % [req["type"], g.engine.year, g.engine.phase]
+		var key := "%s_%s_%d_%d" % [req["type"], req.get("ctx", ""), g.engine.year, g.engine.phase]
 		if not shots_taken.has(key) and (g.engine.year <= 2 or req["type"] != "influence"):
 			shots_taken[key] = true
 			await shot(key)

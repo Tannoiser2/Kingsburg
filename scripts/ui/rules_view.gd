@@ -95,4 +95,28 @@ func _tables_text() -> String:
 		if b % 4 == 3:
 			s += "\n"
 	s += "[font_size=24]%sInvasori per anno%s[/font_size]\nI: 2-4 · II: 3-5 · III: 4-6 · IV: 5-7 · V: 7-9\n" % [g, e]
+	s += "\n[font_size=26]%sTO FORGE A REALM%s[/font_size]\n" % [g, e]
+	s += "[b]1 · Linee aggiuntive[/b]: 7 linee di edifici (A-G) sul retro del tabellone Provincia.\n"
+	s += "[b]2 · Linee alternative[/b]: ognuno ne riceve 2 (a caso o a turno) e decide quali sostituire. Senza il modulo 1 si tolgono le linee A e G.\n"
+	s += "[b]3 · Governatori[/b]: un potere per tutta la partita, scelto fra 3 carte (o all'asta in PV).\n"
+	s += "[b]4 · Carte Fato[/b]: una per anno, valida fino alla fine dell'Inverno.\n"
+	s += "[b]5 · Rinforzi determinabili[/b]: in Inverno ognuno sceglie un gettone (0,1,1,2,3,4) invece del dado del Re; quello avanzato a fine partita vale altrettanti PV.\n"
+	s += "[b]6 · Capricci a Corte[/b]: all'inizio di ogni stagione una tessera cambia per sempre la ricompensa di un Consigliere (variante Restaurazione: tutte subito, una tolta a ogni stagione).\n"
+	s += "\n[font_size=22]%sEdifici delle linee A e G e delle linee alternative%s[/font_size]\n" % [g, e]
+	for b in range(20, D.N_BUILDINGS):
+		var bd: Dictionary = D.BUILDINGS[b]
+		s += "[b]%s[/b] (%s · %d PV): %s\n" % [bd["name"], D.cost_text(bd["cost"]), bd["vp"], bd["text"]]
+	s += "\n[font_size=22]%sGovernatori%s[/font_size]\n" % [g, e]
+	for gv in D.GOVERNORS:
+		s += "[b]%s[/b]: %s\n" % [gv["name"], gv["text"]]
+	s += "\n[font_size=22]%sCarte Fato%s[/font_size]\n" % [g, e]
+	var seen := {}
+	for f in D.FATE:
+		if seen.has(f["key"]):
+			continue
+		seen[f["key"]] = true
+		s += "[b]%s[/b]: %s\n" % [f["name"], f["text"]]
+	s += "\n[font_size=22]%sCapricci a Corte%s[/font_size]\n" % [g, e]
+	for k in range(1, 17):
+		s += "[b]%d[/b]: %s\n" % [k, D.CAPRICCI[k]]
 	return s

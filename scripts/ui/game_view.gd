@@ -21,6 +21,8 @@ var pending: Dictionary = {}
 # selezione per l'influenza
 var sel_dice: Array = []
 var use_p2 := false
+var p2v := 2
+var itin := false
 var mk := 0
 
 # nodi
@@ -142,7 +144,7 @@ func _build_board() -> void:
 		adv_panels[a] = p
 	var cr := PanelContainer.new()
 	cr.position = Vector2(662, 146)
-	cr.size = Vector2(312, 196)
+	cr.size = Vector2(312, 196) if not engine.mods.get("fate", false) else Vector2(312, 118)
 	cr.custom_minimum_size = cr.size
 	var crs := UI.panel_style(Color("#0e0b07d0"), Color("#6a5a3a"), 1, 8)
 	crs.set_content_margin_all(6)
@@ -381,8 +383,66 @@ func _refresh_markers() -> void:
 		for k in range(lst2.size()):
 			var off2 := Vector2(0, -k * 7)
 			_coat_marker(lst2[k]["color"], _bp(D.sol_pos(v)) + off2, 32)
+	# Capricci a Corte: le tessere coprono la ricompensa del Consigliere
+	for k in engine.cap_tiles:
+		var r := D.adv_rect(k)
+		var tw := r.size.x * BOARD_SIZE * 1.02
+		var cap := UI.icon_rect(UI.cap_tex(k), Vector2(tw, tw * 215.0 / 440.0))
+		cap.position = Vector2(r.position.x * BOARD_SIZE - tw * 0.01, (r.position.y + r.size.y) * BOARD_SIZE - tw * 215.0 / 440.0 + 2)
+		cap.mouse_filter = Control.MOUSE_FILTER_PASS
+		cap.tooltip_text = "Capriccio %d: %s" % [k, D.CAPRICCI[k]]
+		markers.add_child(cap)
+		if k == 4 or k == 5:
+			var hb := HBoxContainer.new()
+			hb.position = cap.position + Vector2(tw * 0.55, -22)
+			hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			var goods := []
+			if k == 4:
+				for t in D.GOODS:
+					for j in range(engine.cap4[t]):
+						goods.append(t)
+			elif engine.cap5 != "":
+				goods.append(engine.cap5)
+			for t in goods:
+				hb.add_child(UI.icon_rect(UI.good_icon(t), Vector2(24, 24)))
+			markers.add_child(hb)
+	# Accordi Segreti e Stelle in Ascesa
+	for a in engine.marks:
+		var lst3: Array = engine.marks[a]
+		for j in range(lst3.size()):
+			var mc := _coat_marker(engine.players[lst3[j]]["color"], _bp(D.adv_center(a)) + Vector2(-48 + j * 16, -62), 30)
+			mc.tooltip_text = "Accordi Segreti: segnalino di %s" % engine.pname(lst3[j])
+			mc.mouse_filter = Control.MOUSE_FILTER_PASS
+	for a in engine.stars:
+		var it: String = engine.stars[a]
+		var st := UI.icon_rect(UI.tex("res://assets/tokens/plus2.png") if it == "p2" else UI.good_icon(it), Vector2(30, 30))
+		st.position = _bp(D.adv_center(a)) + Vector2(32, -76)
+		markers.add_child(st)
+	# carta Fato dell'anno (e la sostitutiva di Situazione Perdurante)
+	if engine.fate_card >= 0 and engine.phase >= 1 and engine.phase <= 8:
+		var cards := [engine.fate_card]
+		if engine.fate_extra >= 0:
+			cards.append(engine.fate_extra)
+		for j2 in range(cards.size()):
+			var fc := UI.icon_rect(UI.fate_tex(cards[j2]), Vector2(250, 164))
+			fc.position = Vector2(700 + j2 * 20, 272 + j2 * 18)
+			fc.mouse_filter = Control.MOUSE_FILTER_STOP
+			fc.tooltip_text = "%s\n%s" % [D.FATE[cards[j2]]["name"], D.FATE[cards[j2]]["text"]]
+			var fci: int = cards[j2]
+			fc.gui_input.connect(func(ev):
+				if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+					_card_popup(UI.fate_tex(fci), Vector2(600, 394)))
+			markers.add_child(fc)
+	if engine.year >= 1 and engine.year <= 5 and engine.deck2[engine.year - 1] >= 0 and engine.phase < 9:
+		var back2 := UI.icon_rect(UI.tex("res://assets/invaders/back%d.jpg" % engine.year), INV_SIZE * 0.8)
+		back2.position = _bp(INV_POS) - INV_SIZE / 2.0 + Vector2(-INV_SIZE.x * 0.6, 14)
+		back2.tooltip_text = "Manovra a Tenaglia: una seconda carta Invasori"
+		back2.mouse_filter = Control.MOUSE_FILTER_PASS
+		markers.add_child(back2)
 	# dadi sui Consiglieri
 	for a in engine.adv:
+		if a > 18:
+			continue
 		var e: Dictionary = engine.adv[a]
 		var key: String = D.COLORS[engine.players[e["seat"]]["color"]]["key"]
 		_place_dice(a, e["dice"], e["white"], key, e.get("p2", 0), e.get("mk", 0))
@@ -453,13 +513,13 @@ func _player_row(s: int) -> Control:
 	hb.add_child(ol)
 	hb.add_child(UI.icon_rect(UI.coat(p["color"]), Vector2(38, 38)))
 	var nm := UI.label(p["name"] + (" (IA)" if p["ai"] else ""), 21, col["light"], UI.font_bold)
-	nm.custom_minimum_size = Vector2(132, 0)
+	nm.custom_minimum_size = Vector2(112 if engine.mods.get("gov", false) or engine.mods.get("troops", false) else 132, 0)
 	nm.clip_text = true
 	nm.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	hb.add_child(nm)
 	# dadi liberi
 	var dbox := HBoxContainer.new()
-	dbox.custom_minimum_size = Vector2(140, 0)
+	dbox.custom_minimum_size = Vector2(128, 0)
 	dbox.add_theme_constant_override("separation", 2)
 	for d in p["dice"]:
 		if d["used"]:
@@ -494,7 +554,24 @@ func _player_row(s: int) -> Control:
 		w.tooltip_text = "Aiuto del Re: un dado bianco in più in Primavera"
 		w.mouse_filter = Control.MOUSE_FILTER_PASS
 		extra.add_child(w)
-	if p["known"].get(engine.year, false) and _can_see(s):
+	if p["gov"] >= 0:
+		var gt := TextureRect.new()
+		gt.texture = UI.gov_tex(p["gov"])
+		gt.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		gt.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		gt.custom_minimum_size = Vector2(30, 38)
+		gt.tooltip_text = "%s\n%s%s" % [D.GOVERNORS[p["gov"]]["name"], D.GOVERNORS[p["gov"]]["text"], "\n(Paladino ancora in mano)" if p["paladin"] else ""]
+		var gi: int = p["gov"]
+		gt.gui_input.connect(func(ev):
+			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+				_card_popup(UI.gov_tex(gi), Vector2(760, 496)))
+		extra.add_child(gt)
+	if engine.mods.get("troops", false):
+		var tl := UI.label(" ".join(p["troops"].map(func(x): return str(x))), 16, Color("#cfe0a0"))
+		tl.tooltip_text = "Gettoni Richiesta di Truppe ancora disponibili"
+		tl.mouse_filter = Control.MOUSE_FILTER_PASS
+		extra.add_child(tl)
+	if not p["known"].get(engine.year, []).is_empty() and _can_see(s):
 		var k := UI.icon_rect(UI.icon("peek"), Vector2(26, 26))
 		k.tooltip_text = "Conosce la carta Invasori di quest'anno: clic sulla carta nel tabellone per rivederla"
 		k.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -506,7 +583,7 @@ func _player_row(s: int) -> Control:
 func _stat(hb: HBoxContainer, t: Texture2D, v: String, tip: String) -> void:
 	var box := HBoxContainer.new()
 	box.add_theme_constant_override("separation", 1)
-	box.custom_minimum_size = Vector2(50, 0)
+	box.custom_minimum_size = Vector2(47, 0)
 	box.tooltip_text = tip
 	box.mouse_filter = Control.MOUSE_FILTER_PASS
 	var ic := UI.icon_rect(t, Vector2(26, 26))
@@ -535,43 +612,92 @@ func _refresh_province() -> void:
 	var opts: Array = []
 	if pending.get("type", "") == "build" and int(pending.get("seat", -1)) == s:
 		opts = pending["options"]
-	for b in range(20):
-		var r := b / 4
-		var c := b % 4
-		var root := Control.new()
-		root.position = Vector2(c * (CARD.x + 6), r * (CARD.y + 4))
-		root.size = CARD
-		prov_grid.add_child(root)
-		var t := TextureRect.new()
-		t.texture = UI.building_tex(b)
-		t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		t.stretch_mode = TextureRect.STRETCH_SCALE
-		t.size = CARD
-		root.add_child(t)
-		var built: bool = p["bld"][b]
-		var can: bool = b in opts
-		if not built and not can:
-			t.modulate = Color(0.45, 0.45, 0.5)
-		if built:
-			var tok := UI.icon_rect(UI.coat(p["color"]), Vector2(34, 34))
-			tok.position = Vector2(CARD.x * 0.503 - 17, CARD.y * 0.152 - 17)
-			root.add_child(tok)
-		if can:
-			var hl := Panel.new()
-			hl.size = CARD
-			hl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			var sb := UI.panel_style(Color(0, 0, 0, 0), UI.GREEN, 3, 4)
-			hl.add_theme_stylebox_override("panel", sb)
-			root.add_child(hl)
-		var cost := engine.building_cost(s, b)
-		var tip := "%s · %d PV\nCosto: %s\n%s" % [D.BUILDINGS[b]["name"], D.BUILDINGS[b]["vp"], D.cost_text(cost), D.BUILDINGS[b]["text"]]
-		if built:
-			tip += "\n(costruito)"
-		elif can:
-			tip += "\nClic per costruire"
-		root.tooltip_text = tip
-		root.mouse_filter = Control.MOUSE_FILTER_STOP
-		root.gui_input.connect(_on_building_input.bind(b))
+	var lines: Array = p["lines"]
+	var rows := lines.size()
+	var ch := minf(CARD.y, floorf(507.0 / rows) - 4.0)
+	var card := Vector2(roundf(ch * CARD.x / CARD.y), ch)
+	prov_grid.position = Vector2(RX + (RW - 4 * (card.x + 6)) / 2.0 + 3, 412)
+	for r in range(rows):
+		for c in range(4):
+			var b: int = lines[r][c]
+			var root := Control.new()
+			root.position = Vector2(c * (card.x + 6), r * (card.y + 4))
+			root.size = card
+			prov_grid.add_child(root)
+			var t := TextureRect.new()
+			t.texture = UI.building_tex(b)
+			t.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			t.stretch_mode = TextureRect.STRETCH_SCALE
+			t.size = card
+			t.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			root.add_child(t)
+			var built: bool = p["bld"][b]
+			var can: bool = b in opts
+			if not built and not can:
+				t.modulate = Color(0.45, 0.45, 0.5)
+			if built:
+				var ts := card.y * 0.35
+				var tok := UI.icon_rect(UI.coat(p["color"]), Vector2(ts, ts))
+				tok.position = Vector2(card.x * 0.503 - ts / 2.0, card.y * 0.152 - ts / 2.0)
+				root.add_child(tok)
+			if can:
+				var hl := Panel.new()
+				hl.size = card
+				hl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				var sb := UI.panel_style(Color(0, 0, 0, 0), UI.GREEN, 3, 4)
+				hl.add_theme_stylebox_override("panel", sb)
+				root.add_child(hl)
+			var cost := engine.building_cost(s, b)
+			var tip := "%s · %d PV\nCosto per te: %s\n%s" % [D.BUILDINGS[b]["name"], D.BUILDINGS[b]["vp"], D.cost_text(cost), D.BUILDINGS[b]["text"]]
+			if built:
+				tip += "\n(costruito)"
+			elif can:
+				tip += "\nClic per costruire"
+			root.tooltip_text = tip
+			root.mouse_filter = Control.MOUSE_FILTER_STOP
+			root.gui_input.connect(_on_building_input.bind(b))
+			if card.y < CARD.y:
+				root.mouse_entered.connect(func(): _building_preview(b, root))
+				root.mouse_exited.connect(func(): _building_preview(-1, root))
+
+
+## Anteprima grande dell'edificio sotto il mouse (quando le carte sono piccole).
+var _preview: TextureRect
+
+func _building_preview(b: int, root: Control) -> void:
+	if _preview == null:
+		_preview = TextureRect.new()
+		_preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		_preview.stretch_mode = TextureRect.STRETCH_SCALE
+		_preview.size = Vector2(480, 268)
+		_preview.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(_preview)
+	if b < 0:
+		_preview.visible = false
+		return
+	_preview.texture = UI.building_tex(b)
+	_preview.move_to_front()
+	_preview.position = Vector2(RX - 490, clampf(root.global_position.y - 100, 10, 800))
+	_preview.visible = true
+
+
+## Carta ingrandita al centro (Governatori, Fato, Invasori). Clic per chiudere.
+func _card_popup(tex: Texture2D, sz: Vector2) -> void:
+	var layer := Control.new()
+	layer.size = Vector2(1920, 1080)
+	layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(layer)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.6)
+	shade.size = layer.size
+	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.add_child(shade)
+	var t := UI.icon_rect(tex, sz)
+	t.position = Vector2(960, 540) - sz / 2.0
+	layer.add_child(t)
+	layer.gui_input.connect(func(ev):
+		if ev is InputEventMouseButton and ev.pressed:
+			layer.queue_free())
 
 
 # =================================================================== consiglieri
@@ -594,17 +720,21 @@ func _moves_for_selection() -> Array:
 	for mv in pending["moves"]:
 		var md: Array = mv["dice"].duplicate()
 		md.sort()
-		if md == sd and int(mv["p2"]) == (1 if use_p2 else 0) and int(mv["mk"]) == mk:
+		if md == sd and int(mv["p2"]) == (1 if use_p2 else 0) and int(mv["mk"]) == mk and bool(mv["it"]) == itin \
+				and (not use_p2 or int(mv["pv"]) == p2v):
 			out.append(mv)
 	return out
 
 
 func _refresh_adv_highlight() -> void:
 	var valid := {}
+	if pending.get("type", "") == "mark":
+		for a0 in pending["options"]:
+			valid[int(a0)] = "yes"
 	if pending.get("type", "") == "influence":
 		if sel_dice.is_empty():
 			for mv in pending["moves"]:
-				if int(mv["p2"]) == 0 and int(mv["mk"]) == 0:
+				if int(mv["p2"]) == 0 and int(mv["mk"]) == 0 and not mv["it"]:
 					valid[int(mv["adv"])] = "maybe"
 		else:
 			for mv in _moves_for_selection():
@@ -626,6 +756,10 @@ func _hover_adv(a: int, on: bool) -> void:
 func _on_adv_input(ev: InputEvent, a: int) -> void:
 	if not (ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT):
 		return
+	if pending.get("type", "") == "mark":
+		if a in pending["options"]:
+			_provide(a)
+		return
 	if pending.get("type", "") != "influence":
 		return
 	var cand := _moves_for_selection().filter(func(m): return int(m["adv"]) == a)
@@ -634,7 +768,7 @@ func _on_adv_input(ev: InputEvent, a: int) -> void:
 		var by_vals := {}
 		var p: Dictionary = engine.players[int(pending["seat"])]
 		for mv in pending["moves"]:
-			if int(mv["adv"]) != a or int(mv["p2"]) != 0 or int(mv["mk"]) != 0:
+			if int(mv["adv"]) != a or int(mv["p2"]) != 0 or int(mv["mk"]) != 0 or mv["it"]:
 				continue
 			var vals: Array = mv["dice"].map(func(i): return int(p["dice"][i]["v"]) * 10 + (1 if p["dice"][i]["white"] else 0))
 			vals.sort()
@@ -661,11 +795,18 @@ func _on_building_input(ev: InputEvent, b: int) -> void:
 # =================================================================== decisioni
 
 func _on_decision(req: Dictionary) -> void:
+	# scelte segrete (Governatore, gettoni Truppe) con più persone allo stesso schermo: prima la tenda
+	if req.get("secret", false) and humans.size() > 1 and online == null and not req.get("_shown", false):
+		req["_shown"] = true
+		_curtain(int(req["seat"]), func(): _on_decision(req))
+		return
 	pending = req
 	var s: int = req["seat"]
 	viewer = s
 	sel_dice = []
 	use_p2 = false
+	p2v = 2
+	itin = false
 	mk = 0
 	_clear_modal()
 	refresh()
@@ -676,7 +817,7 @@ func _on_decision(req: Dictionary) -> void:
 		"build":
 			_clear_actions()
 			if req.get("second", false):
-				action_msg.text = "%s: Agente del Re, puoi costruire un secondo edificio (clic su una carta evidenziata)." % who
+				action_msg.text = "%s: %s, puoi costruire un altro edificio (clic su una carta evidenziata)." % [who, req.get("why", "Agente del Re")]
 			else:
 				action_msg.text = "%s: costruisci un edificio (clic su una carta evidenziata) oppure nessuno." % who
 			var b := UI.button("NON COSTRUIRE", 240, 52, 22)
@@ -694,6 +835,17 @@ func _on_decision(req: Dictionary) -> void:
 			_yesno_modal(req["title"], func(v): _provide(v))
 		"recruit":
 			_recruit_modal(req)
+		"gov":
+			_gov_modal(req)
+		"lines":
+			_lines_modal(req)
+		"draft_line":
+			_draft_modal(req)
+		"troops":
+			_troops_modal(req)
+		"mark":
+			_clear_actions()
+			action_msg.text = "%s: %s (clic su un Consigliere evidenziato)." % [who, req["title"]]
 		_:
 			_provide(null)
 
@@ -702,6 +854,8 @@ func _provide(r) -> void:
 	pending = {}
 	sel_dice = []
 	use_p2 = false
+	p2v = 2
+	itin = false
 	mk = 0
 	_clear_modal()
 	_clear_actions()
@@ -735,6 +889,8 @@ func _influence_ui() -> void:
 	var who := "%s: " % engine.pname(s) if humans.size() > 1 else ""
 	action_msg.text = who + "scegli i dadi, poi clic su un Consigliere evidenziato (oppure PASSA)."
 	var col_key: String = D.COLORS[p["color"]]["key"]
+	var nfree := engine.free_dice(s).size()
+	var dsz := 64.0 if nfree <= 4 else 50.0
 	for i in range(p["dice"].size()):
 		var d: Dictionary = p["dice"][i]
 		if d["used"]:
@@ -743,7 +899,7 @@ func _influence_ui() -> void:
 		b.texture_normal = UI.die_tex("white" if d["white"] else col_key, d["v"])
 		b.ignore_texture_size = true
 		b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-		b.custom_minimum_size = Vector2(64, 64)
+		b.custom_minimum_size = Vector2(dsz, dsz)
 		var on: bool = i in sel_dice
 		if on:
 			b.modulate = Color(1.15, 1.15, 0.8)
@@ -761,22 +917,33 @@ func _influence_ui() -> void:
 			_refresh_adv_highlight())
 		action_row.add_child(wrap)
 	var sl := UI.label("", 26, UI.GOLD, UI.font_bold)
-	sl.custom_minimum_size = Vector2(110, 0)
-	var tot := _sel_sum() + (2 if use_p2 else 0) + mk
-	sl.text = "= %d" % tot if not sel_dice.is_empty() else ""
+	sl.custom_minimum_size = Vector2(70, 0)
+	var tot := _sel_sum() + (p2v if use_p2 else 0) + mk
+	sl.text = "= %d" % tot if not sel_dice.is_empty() and not itin else ("1 dado" if itin else "")
 	action_row.add_child(sl)
-	if p["p2"] > 0 and not p["used"].get("p2", false):
-		var b2 := UI.button("+2 (%d)" % p["p2"], 96, 52, 22)
+	var multi := engine.gov(s) == "damigella"
+	if p["p2"] > 0 and (multi or not p["used"].get("p2", false)):
+		var trick := engine.gov(s) == "truffatore"
+		var b2 := UI.button("%+d (%d)" % [p2v, p["p2"]] if use_p2 else "+2 (%d)" % p["p2"], 96, 52, 22)
 		if use_p2:
 			UI.primary(b2)
-		b2.tooltip_text = "Aggiungi un gettone +2 ai dadi scelti"
+		b2.tooltip_text = "Aggiungi un gettone +2 ai dadi scelti" + (" (Truffatore: clic di nuovo per usarlo come +3 o +1)" if trick else "")
 		b2.pressed.connect(func():
-			use_p2 = not use_p2
+			if not use_p2:
+				use_p2 = true
+				p2v = 2
+			elif trick and p2v == 2:
+				p2v = 3
+			elif trick and p2v == 3:
+				p2v = 1
+			else:
+				use_p2 = false
+				p2v = 2
 			_influence_ui()
 			_refresh_adv_highlight())
 		action_row.add_child(b2)
 	if engine.has_b(s, D.B_MERCATO) and not p["used"].get("market", false):
-		var bm := UI.button("Mercato %s" % ("±1" if mk == 0 else "%+d" % mk), 140, 52, 22)
+		var bm := UI.button("Mercato %s" % ("±1" if mk == 0 else "%+d" % mk), 130, 52, 22)
 		if mk != 0:
 			UI.primary(bm)
 		bm.tooltip_text = "Mercato: influenza un Consigliere di valore 1 più alto o più basso (clic per cambiare)"
@@ -785,13 +952,32 @@ func _influence_ui() -> void:
 			_influence_ui()
 			_refresh_adv_highlight())
 		action_row.add_child(bm)
+	if engine.has_b(s, D.B_MERC_ITIN) and not p["used"].get("itin", false):
+		var bi := UI.button("Itinerante", 120, 52, 20)
+		if itin:
+			UI.primary(bi)
+		bi.tooltip_text = "Mercato Itinerante: con un solo dado colorato influenzi un Consigliere da 1 a 6, qualunque sia il valore"
+		bi.pressed.connect(func():
+			itin = not itin
+			_influence_ui()
+			_refresh_adv_highlight())
+		action_row.add_child(bi)
+	# Politico: caselle 5 e 10 sulla carta
+	for mv in _moves_for_selection():
+		if int(mv["adv"]) > 18:
+			var pb := UI.button("Politico %d" % (5 if int(mv["adv"]) == engine.POL5 else 10), 120, 52, 20)
+			UI.primary(pb)
+			pb.tooltip_text = "Schiera i dadi sulla carta del Politico"
+			var mvc: Dictionary = mv
+			pb.pressed.connect(func(): _provide(mvc))
+			action_row.add_child(pb)
 	if engine.envoy == s:
-		var ei := UI.label("Agente del Re: puoi usare\nun Consigliere già occupato", 17, Color("#d0b0ff"))
+		var ei := UI.label("Agente: puoi usare\nun Consigliere occupato", 16, Color("#d0b0ff"))
 		action_row.add_child(ei)
 	var sp := Control.new()
 	sp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	action_row.add_child(sp)
-	var bp := UI.button("PASSA", 130, 52, 24)
+	var bp := UI.button("PASSA", 110, 52, 24)
 	bp.pressed.connect(func(): _provide({"pass": true}))
 	action_row.add_child(bp)
 
@@ -852,7 +1038,7 @@ func _goods_modal(req: Dictionary, losing: bool) -> void:
 		l0.custom_minimum_size = Vector2(440, 0)
 		hb0.add_child(l0)
 		vb.add_child(hb0)
-	var have: Dictionary = engine.players[s]["goods"]
+	var have: Dictionary = req.get("have", engine.players[s]["goods"])
 	var cnt := {"g": 0, "w": 0, "s": 0}
 	var ok := UI.primary(UI.button("CONFERMA", 220, 56, 24))
 	var lbls := {}
@@ -915,11 +1101,172 @@ func _pick_modal(req: Dictionary) -> void:
 		l0.custom_minimum_size = Vector2(440, 0)
 		hb0.add_child(l0)
 		vb.add_child(hb0)
+	if req.has("gov"):
+		var gt := UI.icon_rect(UI.gov_tex(int(req["gov"])), Vector2(570, 372))
+		vb.add_child(gt)
+	var ctx: String = str(req.get("ctx", ""))
+	if ctx.begins_with("cap") and ctx.substr(3).trim_suffix("o").is_valid_int():
+		var k := int(ctx.substr(3).trim_suffix("o"))
+		var ct := UI.icon_rect(UI.cap_tex(k), Vector2(330, 161))
+		var crow := HBoxContainer.new()
+		crow.add_theme_constant_override("separation", 12)
+		crow.add_child(ct)
+		var cl := UI.label(D.CAPRICCI[k], 20, Color("#ddd"))
+		cl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		cl.custom_minimum_size = Vector2(240, 0)
+		crow.add_child(cl)
+		vb.add_child(crow)
+	if req.get("dice", false):
+		var dr := HBoxContainer.new()
+		dr.alignment = BoxContainer.ALIGNMENT_CENTER
+		var key: String = D.COLORS[engine.players[s]["color"]]["key"]
+		for d in engine.players[s]["dice"]:
+			dr.add_child(UI.icon_rect(UI.die_tex("white" if d["white"] else key, d["v"]), Vector2(60, 60)))
+		vb.add_child(dr)
 	var opts: Array = req["options"]
+	var h := 56.0 if opts.size() <= 7 else 44.0
 	for i in range(opts.size()):
-		var b := UI.button(str(opts[i]["label"]), 560, 56, 23)
+		var b := UI.button(str(opts[i]["label"]), 560, h, 23 if h > 50 else 20)
 		b.pressed.connect(func(): _provide(i))
 		vb.add_child(b)
+
+
+## Scelta del Governatore: le carte affiancate, clic per scegliere.
+func _gov_modal(req: Dictionary) -> void:
+	var s: int = req["seat"]
+	var opts: Array = req["options"]
+	var w := 380.0 if opts.size() <= 3 else 300.0
+	var vb := _open_modal(_who_prefix(s) + str(req.get("title", "")), minf(1800.0, opts.size() * (w + 12) + 30), true)
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 12)
+	vb.add_child(hb)
+	for g in opts:
+		var b := TextureButton.new()
+		b.texture_normal = UI.gov_tex(g)
+		b.ignore_texture_size = true
+		b.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT
+		b.custom_minimum_size = Vector2(w, w * 496.0 / 760.0)
+		b.tooltip_text = "%s\n%s" % [D.GOVERNORS[g]["name"], D.GOVERNORS[g]["text"]]
+		var gg: int = g
+		b.pressed.connect(func(): _provide(gg))
+		hb.add_child(b)
+	var note := UI.label("Clic sulla carta che scegli (passa il mouse per leggere il testo).", 20, Color("#cfc5b0"))
+	vb.add_child(note)
+	_center_full.call_deferred(vb.get_parent())
+
+
+## Linee di edifici alternative pescate: per ognuna si decide se sostituire quella del tabellone.
+func _lines_modal(req: Dictionary) -> void:
+	var s: int = req["seat"]
+	var opts: Array = req["options"]
+	var vb := _open_modal(_who_prefix(s) + str(req["title"]), 1240, true)
+	var use := {}
+	var cw := 230.0
+	for L in opts:
+		var box := VBoxContainer.new()
+		var lab := UI.label("Linea %s: in alto quella del tabellone, sotto l'alternativa" % L, 20, Color("#cfc5b0"))
+		box.add_child(lab)
+		for alt in [false, true]:
+			var row := HBoxContainer.new()
+			row.add_theme_constant_override("separation", 4)
+			var ids: Array = D.ALT_LINES[L] if alt else D.LINES[L]
+			for b in ids:
+				var t := UI.icon_rect(UI.building_tex(b), Vector2(cw, cw * 268.0 / 480.0))
+				t.mouse_filter = Control.MOUSE_FILTER_PASS
+				t.tooltip_text = "%s · %d PV · %s\n%s" % [D.BUILDINGS[b]["name"], D.BUILDINGS[b]["vp"], D.cost_text(D.BUILDINGS[b]["cost"]), D.BUILDINGS[b]["text"]]
+				row.add_child(t)
+			box.add_child(row)
+		var tb := UI.button("Tengo la linea del tabellone", 360, 46, 20)
+		var Lc: String = L
+		var paint := func():
+			tb.text = "Uso la linea alternativa %s" % Lc if use.get(Lc, false) else "Tengo la linea del tabellone"
+			if use.get(Lc, false):
+				UI.primary(tb)
+			else:
+				tb.remove_theme_stylebox_override("normal")
+				tb.remove_theme_stylebox_override("hover")
+				tb.remove_theme_color_override("font_color")
+				tb.remove_theme_color_override("font_hover_color")
+		tb.pressed.connect(func():
+			use[Lc] = not use.get(Lc, false)
+			paint.call())
+		box.add_child(tb)
+		vb.add_child(box)
+	var ok := UI.primary(UI.button("CONFERMA", 240, 56, 24))
+	ok.pressed.connect(func():
+		var out := []
+		for L2 in opts:
+			if use.get(L2, false):
+				out.append(L2)
+		_provide(out))
+	vb.add_child(ok)
+	_center_full.call_deferred(vb.get_parent())
+
+
+func _draft_modal(req: Dictionary) -> void:
+	var s: int = req["seat"]
+	var opts: Array = req["options"]
+	var vb := _open_modal(_who_prefix(s) + str(req["title"]), 1000, true)
+	var sc := ScrollContainer.new()
+	sc.custom_minimum_size = Vector2(980, minf(760.0, opts.size() * 140.0))
+	vb.add_child(sc)
+	var inner := VBoxContainer.new()
+	sc.add_child(inner)
+	for L in opts:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+		var b := UI.button("Linea %s" % L, 110, 100, 22)
+		var Lc: String = L
+		b.pressed.connect(func(): _provide(Lc))
+		row.add_child(b)
+		for bid in D.ALT_LINES[L]:
+			var t := UI.icon_rect(UI.building_tex(bid), Vector2(210, 117))
+			t.mouse_filter = Control.MOUSE_FILTER_PASS
+			t.tooltip_text = "%s · %d PV · %s\n%s" % [D.BUILDINGS[bid]["name"], D.BUILDINGS[bid]["vp"], D.cost_text(D.BUILDINGS[bid]["cost"]), D.BUILDINGS[bid]["text"]]
+			row.add_child(t)
+		inner.add_child(row)
+	_center_full.call_deferred(vb.get_parent())
+
+
+func _troops_modal(req: Dictionary) -> void:
+	var s: int = req["seat"]
+	var vb := _open_modal(_who_prefix(s) + str(req["title"]), 640)
+	var info := UI.label("%s\nHai %d soldati; i tuoi edifici danno %+d. Il gettone scelto indica quanti rinforzi ti manda il Re; a fine partita il gettone che ti resta vale altrettanti PV." % [_invader_info(s), engine.players[s]["sol"], engine.battle_bonus(s, "")], 21, Color("#ddd"))
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.custom_minimum_size = Vector2(600, 0)
+	vb.add_child(info)
+	var hb := HBoxContainer.new()
+	hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	hb.add_theme_constant_override("separation", 12)
+	for v in req["options"]:
+		var b := UI.button(str(v), 80, 80, 40)
+		b.add_theme_font_override("font", UI.font_title)
+		var vv: int = v
+		b.pressed.connect(func(): _provide(vv))
+		hb.add_child(b)
+	vb.add_child(hb)
+
+
+## Tenda fra un giocatore e l'altro quando la scelta è segreta (hotseat).
+func _curtain(s: int, then: Callable) -> void:
+	_clear_modal()
+	modal.mouse_filter = Control.MOUSE_FILTER_STOP
+	var shade := ColorRect.new()
+	shade.color = Color(0.02, 0.02, 0.04, 0.97)
+	shade.size = Vector2(1920, 1080)
+	modal.add_child(shade)
+	var vb := VBoxContainer.new()
+	vb.position = Vector2(660, 380)
+	vb.add_theme_constant_override("separation", 20)
+	modal.add_child(vb)
+	vb.add_child(UI.icon_rect(UI.coat(engine.players[s]["color"]), Vector2(120, 120)))
+	vb.add_child(UI.title("Tocca a %s" % engine.pname(s), 44))
+	vb.add_child(UI.label("Scelta segreta: gli altri non guardino lo schermo.", 24))
+	var b := UI.primary(UI.button("SONO PRONTO", 280, 60, 26))
+	b.pressed.connect(func():
+		_clear_modal()
+		then.call())
+	vb.add_child(b)
 
 
 func _yesno_modal(text: String, cb: Callable) -> void:
@@ -964,45 +1311,76 @@ func _statue_modal(req: Dictionary) -> void:
 
 func _invader_info(s: int) -> String:
 	var y := engine.year
-	if engine.players[s]["known"].get(y, false):
-		var c: Dictionary = D.INVADERS[engine.deck[y - 1]]
-		return "Sai già chi arriva: %s, forza %d." % [D.RACE_NAMES[c["race"]], c["str"]]
-	return "Invasori di quest'anno: forza %s." % D.YEAR_RANGE[y]
+	var known: Array = engine.players[s]["known"].get(y, [])
+	var mod := ""
+	if engine.fate("feroci"):
+		mod = " (Nemici Feroci: +1 forza)"
+	elif engine.fate("numerosi"):
+		mod = " (Nemici Numerosi: Goblin e Orchi +1)"
+	if engine.deck2[y - 1] >= 0:
+		mod += " · Manovra a Tenaglia: conta la più forte di due carte"
+	if not known.is_empty():
+		var parts := []
+		for ci in known:
+			var c: Dictionary = D.INVADERS[ci]
+			parts.append("%s, forza %d" % [D.RACE_NAMES[c["race"]], c["str"]])
+		return "Sai già chi arriva: %s.%s" % ["; ".join(parts), mod]
+	return "Invasori di quest'anno: forza %s.%s" % [D.YEAR_RANGE[y], mod]
 
 
 func _recruit_modal(req: Dictionary) -> void:
 	var s: int = req["seat"]
 	var p: Dictionary = engine.players[s]
 	var cp: int = req["cost_per"]
-	var vb := _open_modal(_who_prefix(s) + "Mercenari: quanti soldati recluti?", 660)
-	var info := UI.label("%s\nHai %d soldati; i tuoi edifici danno %+d (contro Goblin, Zombi e Demoni può cambiare). In inverno il dado del Re aggiunge da 1 a 6 soldati a tutti.\nOgni soldato costa %d merc%s a scelta." % [_invader_info(s), p["sol"], engine.battle_bonus(s, ""), cp, "e" if cp == 1 else "i"], 21, Color("#ddd"))
+	var vb := _open_modal(_who_prefix(s) + "Mercenari: quanti soldati recluti?", 700)
+	var reinf := "In inverno il dado del Re aggiunge da 1 a 6 soldati a tutti."
+	if engine.mods.get("troops", false):
+		reinf = "In inverno sceglierai un gettone Richiesta di Truppe (ti restano: %s)." % ", ".join(p["troops"].map(func(x): return str(x)))
+	if engine.fate("nevicata"):
+		reinf = "Nevicata Intensa: il Re invia solo 2 soldati (con i gettoni, uno in meno)."
+	var info := UI.label("%s\nHai %d soldati; i tuoi edifici danno %+d (contro alcune razze può cambiare). %s\nOgni soldato costa %d merc%s a scelta%s." % [_invader_info(s), p["sol"], engine.battle_bonus(s, ""), reinf, cp, "e" if cp == 1 else "i", " (anche gettoni +2)" if req.get("p2ok", false) else ""], 21, Color("#ddd"))
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	info.custom_minimum_size = Vector2(620, 0)
+	info.custom_minimum_size = Vector2(660, 0)
 	vb.add_child(info)
-	var have: Dictionary = p["goods"]
-	var pay := {"g": 0, "w": 0, "s": 0}
+	var have: Dictionary = p["goods"].duplicate()
+	var keys := ["g", "w", "s"]
+	if req.get("p2ok", false):
+		have["p2"] = p["p2"]
+		keys.append("p2")
+	var pay := {}
+	for t in keys:
+		pay[t] = 0
 	var k := [0]
-	var maxk: int = engine.n_goods(s) / cp
+	var total := 0
+	for t in keys:
+		total += have[t]
+	var maxk: int = total / cp
 	var kl := UI.label("0", 40, UI.GOLD, UI.font_bold)
 	var lbls := {}
 	var ok := UI.primary(UI.button("CONFERMA", 220, 56, 24))
+	var paid := func() -> int:
+		var t0 := 0
+		for t in keys:
+			t0 += pay[t]
+		return t0
 	var upd := func():
 		kl.text = str(k[0])
-		var tot: int = pay["g"] + pay["w"] + pay["s"]
-		for t in D.GOODS:
+		var tot: int = paid.call()
+		for t in keys:
 			lbls[t].text = str(pay[t])
 		ok.disabled = tot != k[0] * cp
 		ok.text = "NESSUNO" if k[0] == 0 else ("RECLUTA %d" % k[0] if tot == k[0] * cp else "PAGA ANCORA %d" % (k[0] * cp - tot))
 	var auto_pay := func():
-		pay["g"] = 0
-		pay["w"] = 0
-		pay["s"] = 0
+		for t in keys:
+			pay[t] = 0
 		var need: int = k[0] * cp
 		while need > 0:
 			var best := ""
-			for t in ["w", "s", "g"]:
-				if have[t] - pay[t] > 0 and (best == "" or have[t] - pay[t] > have[best] - pay[best]):
+			for t in (["p2"] if keys.has("p2") else []) + ["w", "s", "g"]:
+				if have[t] - pay[t] > 0 and (best == "" or (t == "p2") or (best != "p2" and have[t] - pay[t] > have[best] - pay[best])):
 					best = t
+					if t == "p2":
+						break
 			if best == "":
 				break
 			pay[best] += 1
@@ -1032,23 +1410,24 @@ func _recruit_modal(req: Dictionary) -> void:
 	vb.add_child(UI.label("Pagamento:", 21, Color("#cfc5b0")))
 	var hb := HBoxContainer.new()
 	hb.alignment = BoxContainer.ALIGNMENT_CENTER
-	hb.add_theme_constant_override("separation", 22)
-	for t in D.GOODS:
+	hb.add_theme_constant_override("separation", 16)
+	for t in keys:
 		var r2 := HBoxContainer.new()
-		r2.add_child(UI.icon_rect(UI.good_icon(t), Vector2(44, 44)))
-		var mi := UI.button("−", 40, 40, 22)
+		r2.add_child(UI.icon_rect(UI.tex("res://assets/tokens/plus2.png") if t == "p2" else UI.good_icon(t), Vector2(40, 40)))
+		var mi := UI.button("−", 38, 38, 22)
 		var l := UI.label("0", 26, Color.WHITE, UI.font_bold)
-		l.custom_minimum_size = Vector2(30, 0)
+		l.custom_minimum_size = Vector2(28, 0)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		lbls[t] = l
-		var pl := UI.button("+", 40, 40, 22)
+		var pl := UI.button("+", 38, 38, 22)
+		var tc: String = t
 		mi.pressed.connect(func():
-			if pay[t] > 0:
-				pay[t] -= 1
+			if pay[tc] > 0:
+				pay[tc] -= 1
 				upd.call())
 		pl.pressed.connect(func():
-			if pay[t] < have[t] and pay["g"] + pay["w"] + pay["s"] < k[0] * cp:
-				pay[t] += 1
+			if pay[tc] < have[tc] and paid.call() < k[0] * cp:
+				pay[tc] += 1
 				upd.call())
 		r2.add_child(mi)
 		r2.add_child(l)
@@ -1069,25 +1448,57 @@ func _recruit_modal(req: Dictionary) -> void:
 func _on_pause(req: Dictionary) -> void:
 	if req.get("ctx", "") == "battle":
 		_battle_modal(int(req["card"]))
+	elif req.get("ctx", "") == "fate":
+		_fate_modal(int(req["card"]))
 	else:
 		engine.provide_decision(true)
 
 
+func _fate_modal(fi: int) -> void:
+	var vb := _open_modal("Anno %s · Carta Fato: %s" % [D.ROMAN[engine.year], D.FATE[fi]["name"]], 660)
+	var cards := [fi]
+	if engine.fate_extra >= 0:
+		cards.append(engine.fate_extra)
+	for c in cards:
+		vb.add_child(UI.icon_rect(UI.fate_tex(c), Vector2(600, 394)))
+	if D.FATE[fi]["key"] == "perdurante" and engine.fate_extra < 0:
+		vb.add_child(UI.label("Resta in vigore: %s" % engine._fate_name(engine.fate_key), 22, UI.GOLD, UI.font_bold))
+	var ok := UI.primary(UI.button("CONTINUA", 240, 56, 24))
+	ok.pressed.connect(func():
+		_clear_modal()
+		engine.provide_decision(true))
+	vb.add_child(ok)
+
+
 func _battle_modal(ci: int) -> void:
 	var card: Dictionary = D.INVADERS[ci]
-	var vb := _open_modal("Inverno · Anno %s: arrivano i %s (forza %d)" % [D.ROMAN[engine.year], D.RACE_NAMES[card["race"]], card["str"]], 900)
+	var vb := _open_modal("Inverno · Anno %s: arrivano i %s (forza %d)" % [D.ROMAN[engine.year], D.RACE_NAMES[card["race"]], engine.battle_str], 980)
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 18)
 	vb.add_child(hb)
-	hb.add_child(UI.icon_rect(UI.invader_tex(ci), Vector2(260, 400)))
+	var cards_box := VBoxContainer.new()
+	hb.add_child(cards_box)
+	var other := engine.revealed2 if engine.revealed2 >= 0 and engine.revealed2 != ci else (engine.revealed if engine.revealed2 >= 0 and engine.revealed != ci else -1)
+	var csz := Vector2(260, 400) if other < 0 else Vector2(180, 277)
+	cards_box.add_child(UI.icon_rect(UI.invader_tex(ci), csz))
+	if other >= 0:
+		var o := UI.icon_rect(UI.invader_tex(other), csz * 0.8)
+		o.modulate = Color(0.6, 0.6, 0.6)
+		cards_box.add_child(o)
 	var right := VBoxContainer.new()
 	right.add_theme_constant_override("separation", 8)
 	hb.add_child(right)
 	var dr := HBoxContainer.new()
-	dr.add_child(UI.icon_rect(UI.die_tex("white", engine.king_die), Vector2(52, 52)))
-	var dl := UI.label("  Il dado del Re manda %d soldat%s a ogni governatore." % [engine.king_die, "o" if engine.king_die == 1 else "i"], 22, Color.WHITE)
-	dr.add_child(dl)
+	if engine.mods.get("troops", false):
+		dr.add_child(UI.label("Rinforzi scelti con i gettoni Richiesta di Truppe." + ("  Nevicata: uno in meno." if engine.fate("nevicata") else ""), 22, Color.WHITE))
+	elif engine.fate("nevicata"):
+		dr.add_child(UI.label("Nevicata Intensa: il Re manda 2 soldati a ogni governatore.", 22, Color.WHITE))
+	else:
+		dr.add_child(UI.icon_rect(UI.die_tex("white", engine.king_die), Vector2(52, 52)))
+		dr.add_child(UI.label("  Il dado del Re manda %d soldat%s a ogni governatore." % [engine.king_die, "o" if engine.king_die == 1 else "i"], 22, Color.WHITE))
 	right.add_child(dr)
+	if engine.battle_str != card["str"]:
+		right.add_child(UI.label("Forza modificata dalla carta Fato: %d → %d" % [card["str"], engine.battle_str], 20, Color("#f0b080")))
 	for e in engine.battle:
 		var s: int = e["seat"]
 		var p: Dictionary = engine.players[s]
@@ -1096,8 +1507,8 @@ func _battle_modal(ci: int) -> void:
 		row.add_child(UI.icon_rect(UI.coat(p["color"]), Vector2(40, 40)))
 		var res_txt: String = {"win": "VITTORIA", "tie": "PAREGGIO", "lose": "SCONFITTA"}[e["res"]]
 		var res_col: Color = {"win": UI.GREEN, "tie": Color("#e8d27a"), "lose": UI.RED}[e["res"]]
-		var l := UI.label("%s: %d soldati %+d edifici = %d" % [p["name"], e["sol"], e["bonus"], e["total"]], 21, Color.WHITE, UI.font_bold)
-		l.custom_minimum_size = Vector2(330, 0)
+		var l := UI.label("%s: %d soldati (di cui %d rinforzi) %+d edifici = %d" % [p["name"], e["sol"], e.get("reinf", 0), e["bonus"], e["total"]], 21, Color.WHITE, UI.font_bold)
+		l.custom_minimum_size = Vector2(470, 0)
 		row.add_child(l)
 		row.add_child(UI.label(res_txt, 21, res_col, UI.font_bold))
 		right.add_child(row)
@@ -1159,8 +1570,9 @@ func _input(ev: InputEvent) -> void:
 		var c := _bp(INV_POS) - INV_SIZE / 2.0 + BOARD_POS
 		if Rect2(c, INV_SIZE).has_point(ev.position):
 			for s in range(engine.n):
-				if _can_see(s) and engine.players[s]["known"].get(engine.year, false) and not engine.players[s]["ai"]:
-					_peek_toast(s, engine.deck[engine.year - 1])
+				var kn: Array = engine.players[s]["known"].get(engine.year, [])
+				if _can_see(s) and not kn.is_empty() and not engine.players[s]["ai"]:
+					_peek_toast(s, kn[kn.size() - 1])
 					return
 
 

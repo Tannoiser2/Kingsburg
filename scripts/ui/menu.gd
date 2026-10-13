@@ -9,7 +9,21 @@ var seat_mode := [0, 1, 1, 2, 2]      # 0 umano, 1 IA, 2 assente
 var tiles := {}
 var level := 1
 var speed := 1
+var mods := {}
 var msg: Label
+var mods_lbl: Label
+
+const MOD_LIST := [
+	["lines", "1 · Linee di edifici aggiuntive", "Si usa il retro del tabellone Provincia: 7 linee di edifici (A-G)."],
+	["alt", "2 · Linee di edifici alternative", "Ognuno pesca 2 linee alternative e decide se usarle al posto di quelle del tabellone."],
+	["alt_draft", "    scelta a turno (draft)", "Le linee alternative si scelgono a turno, scoperte, invece di pescarle a caso."],
+	["gov", "3 · Governatori", "Ognuno sceglie un Governatore fra 3 carte: un potere speciale per tutta la partita."],
+	["gov_auction", "    asta in Punti Vittoria", "I Governatori si contendono all'asta pagando PV, invece di sceglierli fra 3 carte."],
+	["fate", "4 · Carte Fato", "Ogni anno una carta Fato cambia le regole per tutto l'anno."],
+	["troops", "5 · Rinforzi invernali determinabili", "In Inverno ognuno sceglie un gettone (0,1,1,2,3,4) al posto del dado del Re; quello avanzato vale PV."],
+	["capricci", "6 · Capricci a Corte", "A ogni stagione una tessera cambia per sempre la ricompensa di un Consigliere."],
+	["restaurazione", "    variante Restaurazione", "Tutte le tessere Capriccio all'inizio; a ogni stagione se ne toglie una."],
+]
 
 
 func _ready() -> void:
@@ -18,6 +32,7 @@ func _ready() -> void:
 		seat_mode = main.menu_state["seat_mode"].duplicate()
 		level = main.menu_state["level"]
 		speed = main.menu_state["speed"]
+		mods = main.menu_state.get("mods", {}).duplicate()
 	var bg := TextureRect.new()
 	bg.texture = UI.tex("res://assets/menu_bg.jpg")
 	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
@@ -60,7 +75,7 @@ func _ready() -> void:
 
 	var box := PanelContainer.new()
 	box.add_theme_stylebox_override("panel", UI.panel_style(Color("#0d0b08dd"), Color("#4a3e28"), 1, 8))
-	box.position = Vector2(62, 700)
+	box.position = Vector2(62, 690)
 	box.custom_minimum_size = Vector2(1100, 0)
 	add_child(box)
 	var ov := VBoxContainer.new()
@@ -68,9 +83,23 @@ func _ready() -> void:
 	box.add_child(ov)
 	ov.add_child(_segmented("Livello IA", ["Facile", "Normale", "Difficile"], level, func(k): level = k))
 	ov.add_child(_segmented("Velocità IA", ["Lenta", "Normale", "Veloce", "Istantanea"], speed, func(k): speed = k))
+	var mrow := HBoxContainer.new()
+	mrow.add_theme_constant_override("separation", 12)
+	var ml := UI.label("Espansioni", 28, Color.WHITE, UI.font_bold)
+	ml.custom_minimum_size = Vector2(190, 0)
+	mrow.add_child(ml)
+	var mb := UI.button("TO FORGE A REALM…", 250, 50, 22)
+	mb.pressed.connect(_mods_panel)
+	mrow.add_child(mb)
+	mods_lbl = UI.label("", 21, Color("#cfc5b0"))
+	mods_lbl.custom_minimum_size = Vector2(560, 0)
+	mods_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mrow.add_child(mods_lbl)
+	ov.add_child(mrow)
+	_mods_text()
 
 	msg = UI.label("", 26, UI.RED, UI.font_bold)
-	msg.position = Vector2(62, 868)
+	msg.position = Vector2(62, 1000)
 	add_child(msg)
 
 	var btns := HBoxContainer.new()
@@ -107,7 +136,87 @@ func _ready() -> void:
 
 
 func _store() -> void:
-	main.menu_state = {"seat_mode": seat_mode.duplicate(), "level": level, "speed": speed}
+	main.menu_state = {"seat_mode": seat_mode.duplicate(), "level": level, "speed": speed, "mods": mods.duplicate()}
+
+
+func _mods_text() -> void:
+	var names := []
+	for m in MOD_LIST:
+		if mods.get(m[0], false):
+			names.append(m[1].strip_edges().replace("    ", ""))
+	mods_lbl.text = "Nessuna: gioco base." if names.is_empty() else ", ".join(names.map(func(x): return x.split(" · ")[0] if " · " in x else x))
+	if not names.is_empty():
+		mods_lbl.text = "Moduli: " + mods_lbl.text
+
+
+func _mods_panel() -> void:
+	var layer := Control.new()
+	layer.size = Vector2(1920, 1080)
+	layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(layer)
+	var shade := ColorRect.new()
+	shade.color = Color(0, 0, 0, 0.75)
+	shade.size = layer.size
+	layer.add_child(shade)
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", UI.panel_style(Color("#15120df4"), UI.GOLD, 2, 8))
+	box.position = Vector2(420, 90)
+	box.custom_minimum_size = Vector2(1080, 0)
+	layer.add_child(box)
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 10)
+	box.add_child(vb)
+	vb.add_child(UI.title("TO FORGE A REALM", 40))
+	vb.add_child(UI.label("I moduli dell'espansione si possono combinare a piacere.", 22, Color("#cccccc")))
+	var checks := {}
+	for m in MOD_LIST:
+		var row := HBoxContainer.new()
+		var c := CheckBox.new()
+		c.text = m[1]
+		c.button_pressed = mods.get(m[0], false)
+		c.custom_minimum_size = Vector2(440, 0)
+		c.add_theme_font_size_override("font_size", 24)
+		row.add_child(c)
+		var d := UI.label(m[2], 19, Color("#bdb5a5"))
+		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		d.custom_minimum_size = Vector2(600, 0)
+		row.add_child(d)
+		vb.add_child(row)
+		checks[m[0]] = c
+	var fix := func():
+		# le sotto-opzioni valgono solo col modulo principale
+		for pair in [["alt_draft", "alt"], ["gov_auction", "gov"], ["restaurazione", "capricci"]]:
+			checks[pair[0]].disabled = not checks[pair[1]].button_pressed
+			if checks[pair[0]].disabled:
+				checks[pair[0]].button_pressed = false
+	for k in checks:
+		checks[k].toggled.connect(func(_on): fix.call())
+	fix.call()
+	var hb := HBoxContainer.new()
+	hb.add_theme_constant_override("separation", 14)
+	var all := UI.button("TUTTI", 160, 56, 24)
+	all.pressed.connect(func():
+		for k in ["lines", "alt", "gov", "fate", "troops", "capricci"]:
+			checks[k].button_pressed = true
+		fix.call())
+	hb.add_child(all)
+	var none := UI.button("NESSUNO", 180, 56, 24)
+	none.pressed.connect(func():
+		for k in checks:
+			checks[k].button_pressed = false
+		fix.call())
+	hb.add_child(none)
+	var ok := UI.primary(UI.button("FATTO", 200, 56, 24))
+	ok.pressed.connect(func():
+		mods = {}
+		for k in checks:
+			if checks[k].button_pressed:
+				mods[k] = true
+		_mods_text()
+		_store()
+		layer.queue_free())
+	hb.add_child(ok)
+	vb.add_child(hb)
 
 
 func _make_tile(c: Dictionary, pos: Vector2) -> void:
@@ -221,7 +330,7 @@ func _config() -> Dictionary:
 			continue
 		seats.append({"color": c["id"], "ai": m == 1, "name": c["name"], "level": level})
 	var speeds := [1.0, 0.5, 0.15, 0.0]
-	return {"seats": seats, "ai_level": level, "ai_delay": speeds[speed]}
+	return {"seats": seats, "ai_level": level, "ai_delay": speeds[speed], "mods": mods.duplicate()}
 
 
 func _on_start() -> void:

@@ -26,6 +26,9 @@ func _run() -> void:
 	var phase := OS.get_environment("KB_PHASE")
 	var menu = main.current
 	menu.seat_mode = [0, 0, 1, 2, 2]
+	if OS.get_environment("KB_MODS") != "":
+		for k in OS.get_environment("KB_MODS").split(","):
+			menu.mods[k] = true
 	menu.speed = 3
 	menu._online_panel()
 	menu.on_name.text = "Host" if role == "host" else "Ospite"

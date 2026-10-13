@@ -1,6 +1,6 @@
 # Kingsburg — adattamento digitale (Godot 4)
 
-Versione digitale per uso personale di **Kingsburg** (seconda edizione, gioco base) di Andrea Chiarvesio
+Versione digitale per uso personale di **Kingsburg** (seconda edizione, con l'espansione *To Forge a Realm*) di Andrea Chiarvesio
 e Luca Iennaco (Giochi Uniti / Stratelibri). Componenti, illustrazioni e regole © dei rispettivi autori:
 le immagini vengono dal modulo Tabletop Simulator e non vanno distribuite pubblicamente.
 
@@ -14,7 +14,7 @@ le immagini vengono dal modulo Tabletop Simulator e non vanno distribuite pubbli
 - **Da 2 a 5 governatori** (Rosso, Giallo, Blu, Nero, Verde), ognuno Umano o IA. Con più umani sullo
   stesso dispositivo si gioca a turno (in Kingsburg non ci sono informazioni nascoste, a parte la carta
   Invasori vista con Generale e Regina, che compare solo a chi l'ha guardata).
-- **Regole complete del gioco base**, 2ª edizione: 5 anni × 8 fasi, Aiuto del Re (dado bianco o merce),
+- **Regole complete del gioco base**, 2ª edizione, e di tutti i moduli dell'espansione: 5 anni × 8 fasi, Aiuto del Re (dado bianco o merce),
   Premio del Re, Agente del Re (Consigliere già occupato oppure secondo edificio), i 18 Consiglieri con
   tutte le scelte, i 20 edifici con i loro effetti (Statua, Cappella, Mercato, Fattorie, Gilda dei Mercanti,
   Locanda, Caserma, Scuderia, Mura, Fortezza, Argano, Municipio, Ambasciata, Cattedrale, bonus contro
@@ -26,6 +26,24 @@ le immagini vengono dal modulo Tabletop Simulator e non vanno distribuite pubbli
   ripartizione di tutti i suoi dadi, giocando prima quelli che gli avversari potrebbero rubargli.
 - **Regole in breve** dal menu e in partita (pulsante REGOLE), diario completo (DIARIO) e cronaca
   sul tabellone.
+
+## Espansione To Forge a Realm
+Dal menu, **TO FORGE A REALM…**: i sei moduli si combinano a piacere (anche online).
+
+1. **Linee aggiuntive**: retro del tabellone Provincia, 7 linee (A-G) con Segheria, Tagliapietre,
+   Oreficeria, Zecca, Fortificazioni Sommarie, Centro Reclutamento, Campo Addestramento, Accademia Militare.
+2. **Linee alternative**: ognuno ne riceve 2 a caso (oppure, con *scelta a turno*, si scelgono scoperte
+   in ordine e poi in ordine inverso) e decide quali sostituire. Senza il modulo 1 si tolgono A e G.
+3. **Governatori**: 3 carte a testa, se ne tiene una (scelta segreta, rivelata insieme); oppure
+   **asta in PV** con n+1 carte. Tutti i 24 poteri (Politico con le sue caselle 5 e 10, Duca,
+   Truffatore +1/+3, Damigella, Ereditiera, Esattore, Architetto…).
+4. **Carte Fato**: una per anno, tutte le 29 carte (Il Re è malato due volte: alla seconda il Re muore
+   e la partita finisce quell'anno; Situazione Perdurante; Manovra a Tenaglia con due carte Invasori…).
+5. **Rinforzi determinabili**: gettoni 0,1,1,2,3,4 scelti in segreto in Inverno; quello avanzato vale PV.
+   Con l'Accademia Militare il dado si dimezza per eccesso; con la Nevicata un soldato in meno e niente 0.
+6. **Capricci a Corte**: le 16 tessere, una per stagione (o la variante Restaurazione).
+
+Le scelte segrete con più persone allo stesso schermo passano da una schermata "tocca a…".
 
 ## Comandi
 - Clic sui dadi per sceglierli, poi clic su un Consigliere evidenziato in verde. Senza dadi scelti i
@@ -78,5 +96,9 @@ assets/                      tabellone, edifici, carte, dadi, stemmi, icone (dal
 - Premio del Re: serve almeno un edificio (a inizio partita nessuno lo riceve).
 - Con 2 giocatori i dadi neutrali contano come Consiglieri già influenzati: l'Agente del Re può usarli.
 - L'Agente del Re per il secondo edificio si usa nel proprio turno di costruzione.
-- Espansioni (*To Forge a Realm*: linee di edifici alternative, carte Fato e Governatore, Capricci,
-  Rinforzi determinabili) non ancora incluse.
+- Capriccio 9: si usano le icone della tessera (due cose diverse fra Oro, Legno, Pietra, soldato,
+  gettone +2), che non coincidono con il testo del regolamento.
+- Capricci 3 e 8: "il giocatore alla tua sinistra" è il posto successivo nell'elenco dei giocatori.
+- Espansione Urbanistica: chi ha Argano o Falegnameria risparmia la merce che gli manca di più.
+- Esattore: le merci arrivano alla fine del turno di costruzione di chi ha costruito.
+- Duca: sposta i dadi dal Consigliere più alto che ha influenzato oltre il 12.
