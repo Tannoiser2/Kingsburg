@@ -1498,7 +1498,7 @@ func _battle_modal(ci: int) -> void:
 		dr.add_child(UI.label("  Il dado del Re manda %d soldat%s a ogni governatore." % [engine.king_die, "o" if engine.king_die == 1 else "i"], 22, Color.WHITE))
 	right.add_child(dr)
 	if engine.battle_str != card["str"]:
-		right.add_child(UI.label("Forza modificata dalla carta Fato: %d → %d" % [card["str"], engine.battle_str], 20, Color("#f0b080")))
+		right.add_child(UI.label("Forza modificata dalla carta Fato: %d: %d" % [card["str"], engine.battle_str], 20, Color("#f0b080")))
 	for e in engine.battle:
 		var s: int = e["seat"]
 		var p: Dictionary = engine.players[s]

@@ -923,7 +923,7 @@ func _dice_abilities(s: int) -> void:
 			if idx >= 0 and idx < p["dice"].size():
 				var old: int = p["dice"][idx]["v"]
 				p["dice"][idx]["v"] = _roll(s, p["dice"][idx]["white"])
-				log_msg("%s rilancia un dado con la Statua: %d → %d." % [pname(s), old, p["dice"][idx]["v"]])
+				log_msg("%s rilancia un dado con la Statua: %d: %d." % [pname(s), old, p["dice"][idx]["v"]])
 				fx.emit("roll", {"seat": s})
 				last = "statue"
 				changed.emit()
@@ -941,7 +941,7 @@ func _dice_abilities(s: int) -> void:
 				idx2 = clampi(idx2, 0, p["dice"].size() - 1)
 				var old2: int = p["dice"][idx2]["v"]
 				p["dice"][idx2]["v"] = _roll(s, p["dice"][idx2]["white"])
-				log_msg("%s rilancia un dado con la Statua: %d → %d." % [pname(s), old2, p["dice"][idx2]["v"]])
+				log_msg("%s rilancia un dado con la Statua: %d: %d." % [pname(s), old2, p["dice"][idx2]["v"]])
 			"chapel":
 				p["used"]["chapel"] = true
 				_reroll_all(s)
@@ -1240,7 +1240,7 @@ func _reward(s: int, a: int) -> void:
 			for t in have:
 				var others := D.GOODS.filter(func(x): return x != t)
 				var v := {t: -1, others[0]: 1, others[1]: 1}
-				opts2.append({"label": "Cedi 1 %s → 1 %s e 1 %s" % [D.GOOD_NAMES[t], D.GOOD_NAMES[others[0]], D.GOOD_NAMES[others[1]]], "val": v, "k": t})
+				opts2.append({"label": "Cedi 1 %s: 1 %s e 1 %s" % [D.GOOD_NAMES[t], D.GOOD_NAMES[others[0]], D.GOOD_NAMES[others[1]]], "val": v, "k": t})
 			var ci3 := await pick(s, "alch", "Alchimista: vuoi scambiare una merce?", opts2, {"adv": a})
 			var give: String = opts2[ci3]["k"]
 			if give != "" and p["goods"][give] > 0:
@@ -1342,7 +1342,7 @@ func _gain_bundle(s: int, b: Dictionary, why: String) -> void:
 		p["p2"] = maxi(0, p["p2"] + b["p2"])
 	var txt := D.bundle_text(b)
 	if txt != "":
-		log_msg("%s: %s → %s." % [pname(s), why, txt])
+		log_msg("%s: %s: %s." % [pname(s), why, txt])
 	fx.emit("gain", {"seat": s, "b": b})
 
 
@@ -1842,7 +1842,7 @@ func _fate_end_of_season(si: int) -> void:
 				if p["goods"][a] > 0:
 					for b in D.GOODS:
 						if a != b:
-							opts.append({"label": "1 %s → 1 %s" % [D.GOOD_NAMES[a], D.GOOD_NAMES[b]], "val": {a: -1, b: 1}, "k": a + b})
+							opts.append({"label": "1 %s: 1 %s" % [D.GOOD_NAMES[a], D.GOOD_NAMES[b]], "val": {a: -1, b: 1}, "k": a + b})
 			var i := await pick(s, "commercio", "Commercio con i Regni Vicini: scambi una merce?", opts)
 			var k: String = opts[i]["k"]
 			if k != "":

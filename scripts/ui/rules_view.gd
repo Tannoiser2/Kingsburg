@@ -65,7 +65,7 @@ Siete governatori di provincia di Re Tritus. In 5 anni costruite edifici, influe
 [b]2. Primavera[/b], [b]4. Estate[/b], [b]6. Autunno[/b] – stagioni produttive:
   • Tutti tirano i 3 dadi (più eventuali bianchi). Chi ha la somma più bassa gioca per primo (a parità resta avanti chi lo era già).
   • A turno ognuno [b]influenza un Consigliere[/b] usando uno o più dadi la cui somma sia esattamente il suo numero, oppure passa. Ogni Consigliere si influenza una volta sola per stagione. Serve almeno un dado colorato: i bianchi si usano solo insieme ai colorati. Un gettone +2 aggiunge 2 a un gruppo di dadi.
-  • In ordine di numero (1→18) i Consiglieri danno il loro aiuto.
+  • In ordine di numero (1>18) i Consiglieri danno il loro aiuto.
   • A turno ognuno può [b]costruire un edificio[/b] pagandone il costo: in ogni riga serve aver costruito tutti quelli a sinistra. Si guadagnano subito i suoi PV.
 [b]3. Premio del Re[/b] – chi ha più edifici guadagna 1 PV (tutti, in caso di parità).
 [b]5. Agente del Re[/b] – chi ha meno edifici (a parità meno merci) riceve l'Agente del Re: in una delle prossime stagioni produttive potrà influenzare un Consigliere già occupato (che darà l'aiuto due volte) oppure costruire un secondo edificio. Va restituito alla fase 5 successiva.
